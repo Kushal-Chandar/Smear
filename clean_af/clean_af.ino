@@ -4,10 +4,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Pin & Motor Configuration
 // ─────────────────────────────────────────────────────────────────────────────
+constexpr uint8_t OPT_SW_PIN       = 2;
 constexpr uint8_t BUTTON_PIN       = 3;    // Input with pullup
 constexpr uint8_t DIR_PIN          = 4;
 constexpr uint8_t STEP_PIN         = 6;
-constexpr uint8_t SLEEP_PIN        = 2;
+constexpr uint8_t SLEEP_PIN        = 12;
 constexpr uint8_t MICROSTEP_PIN_0  = 9;    // DRV8834 M0
 constexpr uint8_t MICROSTEP_PIN_1  = 10;   // DRV8834 M1
 
@@ -29,13 +30,23 @@ bool          lastRawState    = HIGH;
 bool          stableButton    = HIGH;
 unsigned long lastChangeMs    = 0;
 
+// Declare stopMotor as volatile to allow modification in interrupt handler
+volatile bool stopMotor = false;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Setup
 // ─────────────────────────────────────────────────────────────────────────────
+
+void handleOpticalSwitchInterrupt() {
+  stopMotor = true;  // Stop the motor if the interrupt is triggered (e.g., limit switch or optical switch)
+}
+
 void setup() {
   Serial.begin(9600);
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(OPT_SW_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(OPT_SW_PIN), handleOpticalSwitchInterrupt, CHANGE);
 
   // Initialize stepper (RPM) and disable until button press
   stepper.begin(SMEAR_RPM);
@@ -78,38 +89,65 @@ void runStepperSequence() {
   stepper.enable();
   stepper.setMicrostep(16);
 
-  Serial.print("Ramp Down");
-  delay(100);
-  stepper.setRPM(RAMP_RPM);
-  stepper.rotate(200);
-  
-  Serial.println("Moving forward...");
-  stepper.setRPM(SMEAR_RPM);
-  delay(100);
-  stepper.rotate(520);     
+  if (digitalRead(OPT_SW_PIN) == HIGH) {  // Assuming LOW means triggered
+    Serial.println("Optical switch is triggered on startup.");
+    // Move the motor back by 597 rotations
+    Serial.println("Moving motor back by 597 rotations...");
+    stepper.setRPM(SMEAR_RPM);  // Set desired RPM for moving back
+    stepper.rotate(-570);  // Move backwards by 597 rotations (negative direction)
+    Serial.println("Motor moved back by 597 rotations.");
+  }
+  else{
+    Serial.println("Ramp Down");
+    delay(100);
+    stepper.setRPM(RAMP_RPM);
+    stepper.rotate(200);
 
-  Serial.println("Quick back‐n‐forth...");
-  delay(20);
-  stepper.rotate(-50);      
+    Serial.println("Moving forward...");
+    stepper.setRPM(SMEAR_RPM);
+    delay(100);
+    // stepper.rotate(520);
 
-  Serial.println("Smearing and Moving Back");
-  delay(SMEARING_DELAY);
-  stepper.rotate(-470);
+    Serial.println(stopMotor);
+
+    int steps = 1000;  // Define how many steps to move forward
+    // Start the forward motion, but check if stopMotor flag is set
+    for (int i = 0; i < steps; ++i) {
+      if (stopMotor) {
+        Serial.println(i);
+        Serial.println("Interrupt detected. Stopping motor.");
+        stepper.stop();
+        break; //Stop moving and exit the loop
+      }
+      stepper.rotate(1);  // Move 1 step at a time to allow checking stopMotor flag
+    }
+
+    Serial.println("Quick back‐n‐forth...");
+    delay(20);
+    stepper.rotate(-50);      
+
+    Serial.println("Smearing and Moving Back");
+    delay(SMEARING_DELAY);
+    stepper.rotate(-520);
+  }
 
   Serial.println("Ramp Up");
   delay(100);
   stepper.setRPM(RAMP_RPM);
-  stepper.rotate(-200);
+  stepper.rotate(-170);
   
   Serial.println("Sequence complete.");
   delay(100);
   stepper.disable();
+
+  stopMotor = false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Loop
 // ─────────────────────────────────────────────────────────────────────────────
 void loop() {
+
   if (readButtonPressed()) {
     Serial.println("Button pressed!");
     runStepperSequence();
