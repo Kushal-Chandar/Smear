@@ -17,8 +17,11 @@ constexpr uint8_t DEBOUNCE_MS      = 50;   // Debounce interval
 constexpr int MOTOR_STEPS          = 200;  // Full‑step count per revolution
 
 constexpr int RAMP_RPM             = 30;   
-constexpr int SMEAR_RPM            = 150;  
+constexpr int SMEAR_RPM            = 150 + (.17 * 150); // Error adjusted speed 
+constexpr int BACK_RPM             = 85;
+constexpr int JERK_RPM             = 100;
 constexpr int SMEARING_DELAY       = 3000; // Smearing Delay
+
 
 // Instantiate your DRV8834 driver
 DRV8834 stepper(MOTOR_STEPS, DIR_PIN, STEP_PIN, SLEEP_PIN, MICROSTEP_PIN_0, MICROSTEP_PIN_1);
@@ -91,11 +94,11 @@ void runStepperSequence() {
 
   if (digitalRead(OPT_SW_PIN) == HIGH) {  // Assuming LOW means triggered
     Serial.println("Optical switch is triggered on startup.");
-    // Move the motor back by 597 rotations
-    Serial.println("Moving motor back by 597 rotations...");
+    // Move the motor back by 570 rotations
+    Serial.println("Moving motor back by 570 rotations...");
     stepper.setRPM(SMEAR_RPM);  // Set desired RPM for moving back
-    stepper.rotate(-570);  // Move backwards by 597 rotations (negative direction)
-    Serial.println("Motor moved back by 597 rotations.");
+    stepper.rotate(-570);  // Move backwards by 570 rotations (negative direction)
+    Serial.println("Motor moved back by 570 rotations.");
   }
   else{
     Serial.println("Ramp Down");
@@ -104,7 +107,7 @@ void runStepperSequence() {
     stepper.rotate(200);
 
     Serial.println("Moving forward...");
-    stepper.setRPM(SMEAR_RPM);
+    stepper.setRPM(BACK_RPM);
     delay(100);
     // stepper.rotate(520);
 
@@ -124,8 +127,10 @@ void runStepperSequence() {
 
     Serial.println("Quick back‐n‐forth...");
     delay(20);
-    stepper.rotate(-50);      
+    stepper.setRPM(JERK_RPM);
+    stepper.rotate(-30);      
 
+    stepper.setRPM(SMEAR_RPM);
     Serial.println("Smearing and Moving Back");
     delay(SMEARING_DELAY);
     stepper.rotate(-520);
