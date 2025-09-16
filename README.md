@@ -19,7 +19,5 @@ Short, consistent smears with repeatable pressure and speed. Built on Arduino
 <p  align="center"> <img alt="Smear pass 1" src="assets/smear1.jpg" width="360"> <img alt="Smear pass 2" src="assets/smear2.jpg" width="360"> </p></p>
 
 ## Demo (contains blood)
-<a href="assets/smear_demo.mp4">▶️ Watch smear_demo.mp4</a>
-<p  align="center">
-<video src="assets/smear_demo.mp4" width="480" controls></video>
-</p>
+
+https://github.com/user-attachments/assets/040acf06-82c9-4e96-ae75-0505489eb49c
